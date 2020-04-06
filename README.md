@@ -47,8 +47,7 @@ When IndevProxy detects a request to this address, it will attempt to get the li
 If sounds are already downloaded (something that the Minecraft launcher should already have done for you), this is enough for the game to have sounds again.
 
 ##### Disclaimer:
-- IndevProxy will not attempt, for now, to serve assets asked directly by the game.  
-- Musics seems to be non-functional for an unknown reason.
+- IndevProxy will not attempt, for now, to serve assets asked directly by the game.
 - Unfortunately, Mojang now only hosts post-Beta Sound Update sounds
 
 ### Skins
