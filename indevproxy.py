@@ -17,7 +17,7 @@ PROXY_PORT = 8084
 
 VERSION_MANIFEST = b'https://launchermeta.mojang.com/mc/game/version_manifest.json'
 PROCESS_HOST = [b'www.minecraft.net', b's3.amazonaws.com', b'skins.minecraft.net']
-PROCESS_ENDPOINT = [b'/game/', b'/skin/', b'/resources/', b'/MinecraftSkins/']
+PROCESS_ENDPOINT = [b'/game/', b'/skin/', b'/resources/', b'/MinecraftSkins/', b'/listmaps.jsp']
 
 
 def has_list_bytes_starting_with(l: list, s: bytes):
@@ -163,7 +163,7 @@ class IndevProxyPlugin(HttpProxyBasePlugin):
             # Don't connect to upstream if we handle the request
             return None
 
-        print('Ignoring request {}{}'.format(request.host, request.path))
+        print('Ignoring request {}{}'.format(request.host.decode(), request.path.decode()))
         return request
 
     def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
@@ -245,6 +245,16 @@ class IndevProxyPlugin(HttpProxyBasePlugin):
         else:
             print('Individual resource passthrough is not currently supported!')
 
+    def handle_mc_listmaps(self):
+        # A list of maps has been requested, return an empty list
+        self.client.queue(memoryview(build_http_response(
+            status_code=200,
+            body=b'-;-;-;-;-',
+            headers={
+                b'Connection': b'close'
+            }
+        )))
+
     def handle_minecraft_request(self, request: HttpParser):
         print('Handling request for: {}{}'.format(request.host.decode(), request.path.decode()))
 
@@ -257,6 +267,9 @@ class IndevProxyPlugin(HttpProxyBasePlugin):
         elif request.path.startswith(b'/resources/'):
             # Endpoint is /resources/, try to download some useful assets
             self.handle_mc_res(request)
+        elif request.path.startswith(b'/listmaps.jsp'):
+            # Endpoint is /listmaps.jsp, try to do stuff
+            self.handle_mc_listmaps()
         else:
             # No handler
             print('No handler found for endpoint {}'.format(request.url.path))

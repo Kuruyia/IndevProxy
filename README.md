@@ -55,7 +55,12 @@ Older versions of Minecraft uses older URL to get your player skin: ``www.minecr
 IndevProxy will get the skin associated with the username using the current Mojang API, to send it to Minecraft.  
 It should be possible to support capes as well, although I can't test this by myself.
 
+### Saving and Loading
+IndevProxy will serve any request to ``www.minecraft.net/listmaps.jsp``, which has the effect to enable local saving and loading in Indev.  
+IndevProxy will simply send a list of 5 empty save slots to emulate the fact that there is no remote saved maps.
+
 ## Acknowledgments
 - Notch and [Mojang](https://www.mojang.com/), for their work on Minecraft
 - [Proxy.py](https://github.com/abhinavsingh/proxy.py), the base of IndevProxy, allowing it to capture Minecraft requests
 - [Requests](https://requests-fr.readthedocs.io/en/latest/), to facilitate communicating with the Internet when it is required to use the Mojang API
+- [MCraft Client](https://github.com/ManiaDevelopment/MCraft-Client), for providing deobfuscated code for Minecraft Classic
