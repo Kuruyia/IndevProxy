@@ -51,7 +51,7 @@ If sounds are already downloaded (something that the Minecraft launcher should a
 - Unfortunately, Mojang now only hosts post-Beta Sound Update sounds
 
 ### Skins
-Older versions of Minecraft uses older URL to get your player skin: ``www.minecraft.net/skin/<username>.png`` and ``s3.amazonaws.com/MinecraftSkins/<username>.png``  
+Older versions of Minecraft uses older URL to get your player skin: ``www.minecraft.net/skin/``, ``s3.amazonaws.com/MinecraftSkins/`` and ``skins.minecraft.net/MinecraftSkins/``  
 IndevProxy will get the skin associated with the username using the current Mojang API, to send it to Minecraft.  
 It should be possible to support capes as well, although I can't test this by myself.
 

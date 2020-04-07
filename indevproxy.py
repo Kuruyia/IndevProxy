@@ -16,8 +16,16 @@ from proxy.http.proxy import HttpProxyBasePlugin
 PROXY_PORT = 8084
 
 VERSION_MANIFEST = b'https://launchermeta.mojang.com/mc/game/version_manifest.json'
-MINECRAFT_NET = b'www.minecraft.net'
-S3_AMAZONAWS = b's3.amazonaws.com'
+PROCESS_HOST = [b'www.minecraft.net', b's3.amazonaws.com', b'skins.minecraft.net']
+PROCESS_ENDPOINT = [b'/game/', b'/skin/', b'/resources/', b'/MinecraftSkins/']
+
+
+def has_list_bytes_starting_with(l: list, s: bytes):
+    for i in l:
+        if s.startswith(i):
+            return True
+
+    return False
 
 
 def get_mc_uuid_from_username(username: str):
@@ -151,21 +159,23 @@ def convert_mc_resources_to_old_format(resources: dict):
 
 class IndevProxyPlugin(HttpProxyBasePlugin):
     def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
+        if request.host in PROCESS_HOST and has_list_bytes_starting_with(PROCESS_ENDPOINT, request.path):
+            # Don't connect to upstream if we handle the request
+            return None
+
+        print('Ignoring request {}{}'.format(request.host, request.path))
         return request
 
     def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
         # Request doesn't go to the minecraft.net URL, don't touch it
-        if request.host != MINECRAFT_NET and request.host != S3_AMAZONAWS:
+        if request.host not in PROCESS_HOST or not has_list_bytes_starting_with(PROCESS_ENDPOINT, request.path):
             return request
 
         # Request to the minecraft.net URL, handle it
-        succeeded = self.handle_minecraft_request(request)
+        self.handle_minecraft_request(request)
 
-        # Drop the original request if we handled the request
-        if succeeded:
-            return None
-        else:
-            return request
+        # Drop the original request
+        return None
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
         return chunk
@@ -178,44 +188,43 @@ class IndevProxyPlugin(HttpProxyBasePlugin):
         print('Authentication requested')
         self.client.queue(memoryview(build_http_response(
             status_code=200,
-            body=b'0'
+            body=b'0',
+            headers={
+                b'Connection': b'close'
+            }
         )))
-
-        return True
 
     def handle_mc_skin(self, request: HttpParser):
         # A skin has been requested, get the username from the URL path
-        succeeded = False
-        print('Skin requested: {}'.format(request.path))
+        print('Skin requested: {}'.format(request.path.decode()))
         username_start = request.path.rfind(b'/') + 1
         username_end = request.path.find(b'.')
         username = request.path[username_start:username_end]
+        username = username.decode()
 
         print('Got player: {}'.format(username))
 
         try:
             # Try to get the player UUID from their username
-            player_uuid = get_mc_uuid_from_username(username.decode('utf-8'))
+            player_uuid = get_mc_uuid_from_username(username)
             print('Got player UUID: {}'.format(player_uuid))
 
             # Then, we can grab their skin data and send it as the response
             skin = get_mc_player_skin_from_uuid(player_uuid)
             self.client.queue(memoryview(build_http_response(
                 status_code=200,
-                body=skin
+                body=skin,
+                headers={
+                    b'Connection': b'close'
+                }
             )))
-
-            succeeded = True
         except RuntimeError as e:
             print('RuntimeError while getting player skin: {}'.format(e))
         except Exception as e:
             print('Exception while getting player skin: {}'.format(e))
 
-        return succeeded
-
     def handle_mc_res(self, request: HttpParser):
         # Resources have been requested
-        succeeded = False
         print('Resources requested: {}'.format(request.path))
         if request.path == b'/resources/':
             try:
@@ -224,10 +233,11 @@ class IndevProxyPlugin(HttpProxyBasePlugin):
                 resources_old_format = convert_mc_resources_to_old_format(new_resources)
                 self.client.queue(memoryview(build_http_response(
                     status_code=200,
-                    body=resources_old_format.encode()
+                    body=resources_old_format.encode(),
+                    headers={
+                        b'Connection': b'close'
+                    }
                 )))
-
-                succeeded = True
             except RuntimeError as e:
                 print('RuntimeError while getting resources: {}'.format(e))
             except Exception as e:
@@ -235,23 +245,21 @@ class IndevProxyPlugin(HttpProxyBasePlugin):
         else:
             print('Individual resource passthrough is not currently supported!')
 
-        return succeeded
-
     def handle_minecraft_request(self, request: HttpParser):
-        succeeded = False
         print('Handling request for: {}{}'.format(request.host.decode(), request.path.decode()))
 
         if request.path.startswith(b'/game/'):
             # Endpoint is /game/, send 0 to let the game launch
-            succeeded = self.handle_mc_auth()
+            self.handle_mc_auth()
         elif request.path.startswith(b'/skin/') or request.path.startswith(b'/MinecraftSkins/'):
             # Endpoint is /skin/, try to grab the skin from modern servers
-            succeeded = self.handle_mc_skin(request)
+            self.handle_mc_skin(request)
         elif request.path.startswith(b'/resources/'):
             # Endpoint is /resources/, try to download some useful assets
-            succeeded = self.handle_mc_res(request)
-
-        return succeeded
+            self.handle_mc_res(request)
+        else:
+            # No handler
+            print('No handler found for endpoint {}'.format(request.url.path))
 
 
 if __name__ == '__main__':
