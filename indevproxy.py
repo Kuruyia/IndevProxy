@@ -17,7 +17,7 @@ PROXY_PORT = 8084
 
 VERSION_MANIFEST = b'https://launchermeta.mojang.com/mc/game/version_manifest.json'
 PROCESS_HOST = [b'www.minecraft.net', b's3.amazonaws.com', b'skins.minecraft.net']
-PROCESS_ENDPOINT = [b'/game/', b'/skin/', b'/cloak/', b'/resources/', b'/MinecraftSkins/', b'/listmaps.jsp']
+PROCESS_ENDPOINT = [b'/game/', b'/skin/', b'/cloak/', b'/resources/', b'/MinecraftSkins/', b'/MinecraftCloaks/', b'/listmaps.jsp']
 
 
 def has_list_bytes_starting_with(l: list, s: bytes):
@@ -206,19 +206,23 @@ class IndevProxyPlugin(HttpProxyBasePlugin):
             }
         )))
 
-    def handle_mc_skin(self, request: HttpParser, cloak: bool):
+    def handle_mc_skin(self, request: HttpParser, cloak: bool, query: bool):
         # A skin has been requested, get the username from the URL path
         if not cloak:
             print('Skin requested: {}'.format(request.path.decode()))
-            username_start = request.path.rfind(b'/') + 1
-            username_end = request.path.find(b'.')
-            username = request.path[username_start:username_end]
             subtype = 'SKIN'
         else:
             print('Cloak requested: {}'.format(request.path.decode()))
+            subtype = 'CAPE'
+        # 'not-query' form is a static file (or an imitation of one) named after the user, 'query' form ends in ?user=<username>
+        if not query:
+            username_start = request.path.rfind(b'/') + 1
+            username_end = request.path.find(b'.')
+            username = request.path[username_start:username_end]
+        else:
             username_start = request.path.rfind(b'=') + 1
             username = request.path[username_start:]
-            subtype = 'CAPE'
+
         username = username.decode()
 
         print('Got player: {}'.format(username))
@@ -282,10 +286,10 @@ class IndevProxyPlugin(HttpProxyBasePlugin):
             self.handle_mc_auth()
         elif request.path.startswith(b'/skin/') or request.path.startswith(b'/MinecraftSkins/'):
             # Endpoint is /skin/, try to grab the skin from modern servers
-            self.handle_mc_skin(request, False)
-        elif request.path.startswith(b'/cloak/get.jsp?user='):
+            self.handle_mc_skin(request, False, False)
+        elif request.path.startswith(b'/cloak/get.jsp?user=') or request.path.startswith(b'/MinecraftCloaks/'):
             # Endpoint is /cloak/, try to grab the skin from modern servers
-            self.handle_mc_skin(request, True)
+            self.handle_mc_skin(request, True, not request.path.startswith(b'/MinecraftCloaks/'))
         elif request.path.startswith(b'/resources/'):
             # Endpoint is /resources/, try to download some useful assets
             self.handle_mc_res(request)
