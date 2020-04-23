@@ -17,7 +17,7 @@ PROXY_PORT = 8084
 
 VERSION_MANIFEST = b'https://launchermeta.mojang.com/mc/game/version_manifest.json'
 PROCESS_HOST = [b'www.minecraft.net', b's3.amazonaws.com', b'skins.minecraft.net']
-PROCESS_ENDPOINT = [b'/game/', b'/skin/', b'/resources/', b'/MinecraftSkins/', b'/listmaps.jsp']
+PROCESS_ENDPOINT = [b'/game/', b'/skin/', b'/cloak/', b'/resources/', b'/MinecraftSkins/', b'/listmaps.jsp']
 
 
 def has_list_bytes_starting_with(l: list, s: bytes):
@@ -81,7 +81,7 @@ def get_mc_player_textures_from_uuid(uuid: str):
     raise RuntimeError('get_mc_player_textures_from_uuid: Could not find textures')
 
 
-def get_mc_player_skin_from_uuid(uuid: str):
+def get_mc_player_skin_from_uuid(uuid: str, subtype: str):
     # First, we get the textures JSON
     try:
         textures = get_mc_player_textures_from_uuid(uuid)
@@ -89,7 +89,7 @@ def get_mc_player_skin_from_uuid(uuid: str):
         raise
 
     # Then, we grab the URL of the player skin
-    skin_url = textures['textures']['SKIN']['url']
+    skin_url = textures['textures'][subtype]['url']
     skin_response = requests.get(skin_url)
 
     if skin_response.status_code == httpStatusCodes.OK:
@@ -206,12 +206,19 @@ class IndevProxyPlugin(HttpProxyBasePlugin):
             }
         )))
 
-    def handle_mc_skin(self, request: HttpParser):
+    def handle_mc_skin(self, request: HttpParser, cloak: bool):
         # A skin has been requested, get the username from the URL path
-        print('Skin requested: {}'.format(request.path.decode()))
-        username_start = request.path.rfind(b'/') + 1
-        username_end = request.path.find(b'.')
-        username = request.path[username_start:username_end]
+        if not cloak:
+            print('Skin requested: {}'.format(request.path.decode()))
+            username_start = request.path.rfind(b'/') + 1
+            username_end = request.path.find(b'.')
+            username = request.path[username_start:username_end]
+            subtype = 'SKIN'
+        else:
+            print('Cloak requested: {}'.format(request.path.decode()))
+            username_start = request.path.rfind(b'=') + 1
+            username = request.path[username_start:]
+            subtype = 'CAPE'
         username = username.decode()
 
         print('Got player: {}'.format(username))
@@ -222,7 +229,7 @@ class IndevProxyPlugin(HttpProxyBasePlugin):
             print('Got player UUID: {}'.format(player_uuid))
 
             # Then, we can grab their skin data and send it as the response
-            skin = get_mc_player_skin_from_uuid(player_uuid)
+            skin = get_mc_player_skin_from_uuid(player_uuid, subtype)
             self.client.queue(memoryview(build_http_response(
                 status_code=200,
                 body=skin,
@@ -275,7 +282,10 @@ class IndevProxyPlugin(HttpProxyBasePlugin):
             self.handle_mc_auth()
         elif request.path.startswith(b'/skin/') or request.path.startswith(b'/MinecraftSkins/'):
             # Endpoint is /skin/, try to grab the skin from modern servers
-            self.handle_mc_skin(request)
+            self.handle_mc_skin(request, False)
+        elif request.path.startswith(b'/cloak/get.jsp?user='):
+            # Endpoint is /cloak/, try to grab the skin from modern servers
+            self.handle_mc_skin(request, True)
         elif request.path.startswith(b'/resources/'):
             # Endpoint is /resources/, try to download some useful assets
             self.handle_mc_res(request)
