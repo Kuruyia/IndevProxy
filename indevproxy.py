@@ -27,11 +27,17 @@ def has_list_bytes_starting_with(l: list, s: bytes):
 
     return False
 
+# cache these, including non-network-related failures; they're used for any piece of user lookup
+mc_uuid_from_username_response_cache = {}
 
 def get_mc_uuid_from_username(username: str):
-    # Get the UUID from Mojang's API
-    player_uuid_response = requests.get('https://api.mojang.com/users/profiles/minecraft/{}'
+    if username in mc_uuid_from_username_response_cache:
+        player_uuid_response = mc_uuid_from_username_response_cache[username]
+    else:
+        # Get the UUID from Mojang's API
+        player_uuid_response = requests.get('https://api.mojang.com/users/profiles/minecraft/{}'
                                         .format(username))
+        mc_uuid_from_username_response_cache[username] = player_uuid_response
 
     if player_uuid_response.status_code == httpStatusCodes.OK:
         # We must parse the response and get the UUID from the 'id' string
@@ -40,11 +46,17 @@ def get_mc_uuid_from_username(username: str):
     else:
         raise RuntimeError('get_mc_uuid_from_username: status_code != httpStatusCodes.OK')
 
+# also cache these too (same reasoning)
+mc_profile_from_uuid_response_cache = {}
 
 def get_mc_profile_from_uuid(uuid: str):
-    # Get the profile from Mojang's API
-    player_profile_response = requests.get('https://sessionserver.mojang.com/session/minecraft/profile/{}'
+    if uuid in mc_profile_from_uuid_response_cache:
+        player_profile_response = mc_profile_from_uuid_response_cache[uuid]
+    else:
+        # Get the profile from Mojang's API
+        player_profile_response = requests.get('https://sessionserver.mojang.com/session/minecraft/profile/{}'
                                            .format(uuid))
+        mc_profile_from_uuid_response_cache[uuid] = player_profile_response
 
     if player_profile_response.status_code == httpStatusCodes.OK:
         # We can return the parsed JSON if it was received correctly
