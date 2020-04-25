@@ -50,10 +50,12 @@ If sounds are already downloaded (something that the Minecraft launcher should a
 - IndevProxy will not attempt, for now, to serve assets asked directly by the game.
 - Unfortunately, Mojang now only hosts post-Beta Sound Update sounds
 
-### Skins
+### Skins and Capes
 Older versions of Minecraft uses older URL to get your player skin: ``www.minecraft.net/skin/``, ``s3.amazonaws.com/MinecraftSkins/`` and ``skins.minecraft.net/MinecraftSkins/``  
 IndevProxy will get the skin associated with the username using the current Mojang API, to send it to Minecraft.  
-It should be possible to support capes as well, although I can't test this by myself.
+
+It will do the same to get the cape associated with the username, if there is one.  
+In that case, the following URL are supported: ``www.minecraft.net/cloak/``, ``s3.amazonaws.com/MinecraftCloaks/`` and ``skins.minecraft.net/MinecraftCloaks/``
 
 ### Saving and Loading
 IndevProxy will serve any request to ``www.minecraft.net/listmaps.jsp``, which has the effect to enable local saving and loading in Indev.  
@@ -61,6 +63,7 @@ IndevProxy will simply send a list of 5 empty save slots to emulate the fact tha
 
 ## Acknowledgments
 - Notch and [Mojang](https://www.mojang.com/), for their work on Minecraft
+- [20kdc](https://github.com/20kdc), for adding the cape support to IndevProxy
 - [Proxy.py](https://github.com/abhinavsingh/proxy.py), the base of IndevProxy, allowing it to capture Minecraft requests
 - [Requests](https://requests-fr.readthedocs.io/en/latest/), to facilitate communicating with the Internet when it is required to use the Mojang API
 - [MCraft Client](https://github.com/ManiaDevelopment/MCraft-Client), for providing deobfuscated code for Minecraft Classic
