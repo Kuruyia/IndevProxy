@@ -1,3 +1,4 @@
-.idea
-__pycache__
+.idea/
+__pycache__/
 pre-1.6.json
+venv/
