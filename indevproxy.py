@@ -306,5 +306,5 @@ if __name__ == '__main__':
     proxy.main(
         hostname=ipaddress.IPv4Address('0.0.0.0'),
         port=PROXY_PORT,
-        plugins='indevproxy.IndevProxyPlugin'
+        plugins=['indevproxy.IndevProxyPlugin']
     )
